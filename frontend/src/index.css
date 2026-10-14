@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@xterm/xterm/css/xterm.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Night-shift instrument bench: blue slate surfaces, phosphor amber signal. */
+  --ink: #10161f;
+  --panel: #151d28;
+  --raised: #1c2633;
+  --line: #29364a;
+  --text: #d7dee8;
+  --text-muted: #8494a8;
+  --signal: #f2b84b;
+  --ok: #5cc48d;
+  --attention: #a99cf0;
+  --fault: #f07167;
+  --idle: #5f6e82;
+
+  --background: var(--ink);
+  --foreground: var(--text);
+  --card: var(--panel);
+  --card-foreground: var(--text);
+  --popover: var(--raised);
+  --popover-foreground: var(--text);
+  --primary: var(--signal);
+  --primary-foreground: #1b1305;
+  --secondary: var(--raised);
+  --secondary-foreground: var(--text);
+  --muted: var(--raised);
+  --muted-foreground: var(--text-muted);
+  --accent: #243044;
+  --accent-foreground: var(--text);
+  --destructive: var(--fault);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--signal);
+  --radius: 0.375rem;
+}
+
+@theme inline {
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-signal: var(--signal);
+  --color-ok: var(--ok);
+  --color-attention: var(--attention);
+  --color-fault: var(--fault);
+  --color-idle: var(--idle);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "tnum" 1;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 1px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.xterm {
+  padding: 6px 0 0 8px;
+  height: 100%;
+}
+.xterm-viewport {
+  scrollbar-color: var(--line) transparent;
+}
