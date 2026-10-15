@@ -2,6 +2,7 @@ import { authHeaders } from "./auth";
 import type {
   AddHostResult,
   Agent,
+  Completion,
   CreateSessionRequest,
   ErrorBody,
   FileInfo,
@@ -100,6 +101,11 @@ export const api = {
     request<Listing>(`/api/hosts/${q(hostId)}/files/list?path=${q(path)}`),
   stat: (hostId: string, path: string) =>
     request<FileInfo>(`/api/hosts/${q(hostId)}/files/stat?path=${q(path)}`),
+  complete: (hostId: string, path: string, sessionId: string | null) =>
+    request<Completion>(
+      `/api/hosts/${q(hostId)}/files/complete?path=${q(path)}` +
+        (sessionId ? `&session_id=${q(sessionId)}` : ""),
+    ),
   resolve: (hostId: string, sessionId: string, path: string) =>
     request<ResolveResult>(
       `/api/hosts/${q(hostId)}/files/resolve`,

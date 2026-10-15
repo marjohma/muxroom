@@ -107,6 +107,36 @@ async def stat(host_id: str, path: str, request: Request) -> FileInfoOut:
     return FileInfoOut.of(info, links_for(request, host_id))
 
 
+class CompletionItemOut(_Model):
+    name: str
+    kind: str
+    preview: str | None
+    value: str
+
+
+class CompletionOut(_Model):
+    cwd: str | None
+    directory: str
+    items: list[CompletionItemOut]
+    truncated: bool
+
+
+@router.get("/complete")
+async def complete(
+    host_id: str, request: Request, path: str = "", session_id: str | None = None
+) -> CompletionOut:
+    result = await state_of(request).files.complete(host_id, path, session_id=session_id)
+    return CompletionOut(
+        cwd=result.cwd,
+        directory=result.directory,
+        truncated=result.truncated,
+        items=[
+            CompletionItemOut(name=i.name, kind=i.kind, preview=i.preview, value=i.value)
+            for i in result.items
+        ],
+    )
+
+
 @router.post("/resolve")
 async def resolve(host_id: str, body: ResolveIn, request: Request) -> ResolveOut:
     cwd, info = await state_of(request).files.resolve_relative(host_id, body.session_id, body.path)

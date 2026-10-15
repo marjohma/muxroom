@@ -13,6 +13,7 @@ import { AddHostDialog } from "@/features/hosts/AddHostDialog";
 import { HostStrip } from "@/features/hosts/HostStrip";
 import { SignInDialog } from "@/features/hosts/SignInDialog";
 import { PreviewPane } from "@/features/preview/PreviewPane";
+import { addRecent, loadRecent, removeRecent } from "@/features/preview/recent";
 import { NewSessionDialog } from "@/features/sessions/NewSessionDialog";
 import { TabBar } from "@/features/tabs/TabBar";
 import { TabTerminal } from "@/features/tabs/TabTerminal";
@@ -45,6 +46,7 @@ function Dashboard({ hosts }: { hosts: Host[] }) {
   const [newSessionHost, setNewSessionHost] = useState<Host | null>(null);
   const [signInHost, setSignInHost] = useState<Host | null>(null);
   const [addingHost, setAddingHost] = useState(false);
+  const [recent, setRecent] = useState(() => loadRecent(localStorage));
   const [loose, setLoose] = useState<{ open: boolean; target: PreviewTarget | null; orientation: Orientation }>(
     { open: false, target: null, orientation: "horizontal" },
   );
@@ -63,6 +65,7 @@ function Dashboard({ hosts }: { hosts: Host[] }) {
 
   const openSession = (host: Host, session: Session) => dispatch({ type: "open", hostId: host.id, session });
   const showPreview = (target: PreviewTarget | null) => {
+    if (target) setRecent(addRecent(localStorage, target));
     if (active) {
       dispatch({ type: "setPreview", id: active.id, preview: target });
       setPreviewOpenFor((s) => new Set(s).add(active.id));
@@ -165,6 +168,8 @@ function Dashboard({ hosts }: { hosts: Host[] }) {
                   onOpen={showPreview}
                   onClose={closePreview}
                   onToggleOrientation={toggleOrientation}
+                  recent={recent}
+                  onForgetRecent={(r) => setRecent(removeRecent(localStorage, r.hostId, r.path))}
                 />
               ) : null
             }

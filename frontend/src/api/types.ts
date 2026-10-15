@@ -90,6 +90,21 @@ export interface Listing {
   truncated: boolean;
 }
 
+export interface CompletionItem {
+  name: string;
+  kind: FileInfo["kind"];
+  preview: PreviewKind | null;
+  /** Full text to put into the path field. */
+  value: string;
+}
+
+export interface Completion {
+  cwd: string | null;
+  directory: string;
+  items: CompletionItem[];
+  truncated: boolean;
+}
+
 export interface ResolveResult {
   cwd: string;
   file: FileInfo;

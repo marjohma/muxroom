@@ -410,3 +410,54 @@ def test_describe_roots():
     assert describe_roots([("/a", "/a"), ("/temp/x", "/real/x"), ("~/gone", None)]) == (
         "/a, /temp/x (→ /real/x), ~/gone (does not exist)"
     )
+
+
+async def test_completion_relative_to_session_directory(env):
+    service, tree, session, _ = env
+    result = await service.complete("local", "", session_id=session.id)
+    assert result.cwd == str(tree / "home" / "proj")
+    assert [i.value for i in result.items] == ["incoming/", "linked-root/", "plots/"]
+
+    result = await service.complete("local", "plots/fi", session_id=session.id)
+    assert [i.value for i in result.items] == ["plots/fig.pdf", "plots/fig.png", "plots/fig.svg"]
+    assert {i.preview for i in result.items} == {"pdf", "png", "svg"}
+
+    names = [
+        i.name for i in (await service.complete("local", "plots/", session_id=session.id)).items
+    ]
+    assert "notes.txt" not in names and "big.bin" not in names  # not previewable
+    assert "escape" not in names and "broken" not in names  # outside roots / dangling
+    assert "inside" in names  # symlink to a PNG inside the roots
+
+
+async def test_completion_absolute_and_home_paths(env):
+    service, tree, _, _ = env
+    result = await service.complete("local", "~/proj/pl", session_id=None)
+    assert [i.value for i in result.items] == ["~/proj/plots/"]
+    absolute = str(tree / "home" / "proj" / "plots") + "/FIG.P"
+    result = await service.complete("local", absolute, session_id=None)
+    assert [i.name for i in result.items] == ["fig.pdf", "fig.png"]  # case-insensitive
+
+
+async def test_completion_hidden_files_only_when_asked(env):
+    service, tree, session, _ = env
+    (tree / "home" / "proj" / "plots" / ".draft.png").write_bytes(PNG)
+    plain = await service.complete("local", "plots/", session_id=session.id)
+    assert ".draft.png" not in [i.name for i in plain.items]
+    dotted = await service.complete("local", "plots/.", session_id=session.id)
+    assert [i.name for i in dotted.items] == [".draft.png"]
+
+
+@pytest.mark.parametrize("text", ["../", "../secret/", "/etc/", "~/"])
+async def test_completion_respects_roots(env, text):
+    service, _, session, _ = env
+    with pytest.raises(MuxroomError) as err:
+        await service.complete("local", text, session_id=session.id)
+    assert err.value.code in ("path_outside_roots", "file_not_found")
+
+
+async def test_completion_relative_needs_session(env):
+    service, _, _, _ = env
+    with pytest.raises(MuxroomError) as err:
+        await service.complete("local", "plots/", session_id=None)
+    assert err.value.code == "invalid_path"

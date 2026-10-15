@@ -250,3 +250,13 @@ async def test_pdf_preview_can_be_framed_by_the_ui_only(client):
     )
     assert r.headers["x-frame-options"] == "SAMEORIGIN"
     assert r.headers["content-security-policy"] == "frame-ancestors 'self'"
+
+
+async def test_complete_endpoint(client, home):
+    r = await client.get("/api/hosts/local/files/complete", params={"path": "~/proj/plots/fig"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["directory"] == str(home / "proj" / "plots")
+    assert [i["value"] for i in body["items"]] == ["~/proj/plots/fig.pdf", "~/proj/plots/fig.png"]
+    outside = await client.get("/api/hosts/local/files/complete", params={"path": "/etc/"})
+    assert outside.status_code in (403, 404)

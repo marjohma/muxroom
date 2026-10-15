@@ -14,6 +14,7 @@ from muxroom.services.hosts import HostService
 from muxroom.services.sessions import SessionService
 from muxroom.transport.files_base import FileStat, FileTransport
 from muxroom.validation import (
+    CONTROL_CHARS_RE,
     expand_home,
     validate_filename,
     validate_relative_path,
@@ -58,6 +59,22 @@ class FileInfo:
             preview=preview if stat.kind == "file" and not outside else None,
             outside_roots=outside,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionItem:
+    name: str
+    kind: str
+    preview: PreviewKind | None
+    value: str  # full text to put into the input
+
+
+@dataclass(frozen=True, slots=True)
+class Completion:
+    cwd: str | None
+    directory: str
+    items: list[CompletionItem]
+    truncated: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +210,54 @@ class FileService:
     async def stat(self, host_id: str, path: str) -> FileInfo:
         canonical = await self.resolve(host_id, path)
         return FileInfo.of(await self._files(host_id).stat(canonical))
+
+    async def complete(
+        self, host_id: str, text: str, *, session_id: str | None, limit: int = 50
+    ) -> Completion:
+        """Path completion for the preview pane: folders and previewable files.
+
+        `text` is absolute, `~`-based, or relative to the session's pane
+        directory. The listed folder must lie inside the read roots.
+        """
+        if CONTROL_CHARS_RE.search(text) or len(text.encode()) > 1024:
+            raise MuxroomError("invalid_path", "Invalid path")
+        dir_part, _, prefix = text.rpartition("/")
+        if text == "~":
+            dir_part, prefix = "~", ""
+        typed_dir = dir_part + "/" if dir_part or text.startswith("/") else ""
+        cwd: str | None = None
+        if text.startswith(("/", "~")):
+            directory = dir_part or "/"
+        else:
+            if session_id is None:
+                raise MuxroomError("invalid_path", "Relative paths need a session")
+            cwd = await self.sessions.pane_cwd(host_id, session_id)
+            directory = posixpath.join(cwd, dir_part) if dir_part else cwd
+        listing = await self.list(host_id, directory)
+        show_hidden = prefix.startswith(".")
+        matches = [
+            e
+            for e in listing.entries
+            if e.name.lower().startswith(prefix.lower())
+            and (show_hidden or not e.name.startswith("."))
+            and not e.outside_roots
+            and (e.kind == "dir" or e.preview is not None)
+        ]
+        items = [
+            CompletionItem(
+                name=e.name,
+                kind=e.kind,
+                preview=e.preview,
+                value=typed_dir + e.name + ("/" if e.kind == "dir" else ""),
+            )
+            for e in matches[:limit]
+        ]
+        return Completion(
+            cwd=cwd,
+            directory=listing.path,
+            items=items,
+            truncated=len(matches) > limit or listing.truncated,
+        )
 
     async def resolve_relative(
         self, host_id: str, session_id: str, rel: str

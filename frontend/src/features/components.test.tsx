@@ -124,7 +124,8 @@ describe("PreviewPane", () => {
     );
     const { container } = renderWithClient(
       <PreviewPane target={{ hostId: "work", path: "/p/fig.svg", name: "fig.svg", kind: "svg" }} session={null}
-        orientation="horizontal" onOpen={noop} onClose={noop} onToggleOrientation={noop} />,
+        orientation="horizontal" onOpen={noop} onClose={noop} onToggleOrientation={noop}
+        recent={[]} onForgetRecent={noop} />,
     );
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
     expect(container.querySelector("iframe, object, embed")).toBeNull();
@@ -143,11 +144,11 @@ describe("PreviewPane", () => {
     const onOpen = vi.fn();
     renderWithClient(
       <PreviewPane target={null} session={{ hostId: "work", sessionId: "$1" }} orientation="horizontal"
-        onOpen={onOpen} onClose={noop} onToggleOrientation={noop} />,
+        onOpen={onOpen} onClose={noop} onToggleOrientation={noop} recent={[]} onForgetRecent={noop} />,
     );
     const input = screen.getByLabelText("Open file by path");
     fireEvent.change(input, { target: { value: "a.txt" } });
-    fireEvent.submit(input);
+    fireEvent.keyDown(input, { key: "Enter" });
     expect(await screen.findByText("a.txt can't be previewed.")).toBeInTheDocument();
     expect(onOpen).not.toHaveBeenCalled();
   });

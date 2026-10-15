@@ -3,8 +3,9 @@ import { useState } from "react";
 import { api, ApiError, withVersion } from "@/api/client";
 import { ErrorNote, type ErrorLike } from "@/components/ErrorNote";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { Orientation, PreviewTarget } from "@/features/tabs/tabs";
+import { PathInput } from "./PathInput";
+import { recentForHost, type RecentPreview } from "./recent";
 import { useWatchedFile } from "./useWatchedFile";
 
 interface Props {
@@ -14,19 +15,27 @@ interface Props {
   onOpen: (target: PreviewTarget) => void;
   onClose: () => void;
   onToggleOrientation: () => void;
+  recent: RecentPreview[];
+  onForgetRecent: (recent: RecentPreview) => void;
 }
 
-export function PreviewPane({ target, session, orientation, onOpen, onClose, onToggleOrientation }: Props) {
-  const [path, setPath] = useState("");
+export function PreviewPane({
+  target,
+  session,
+  orientation,
+  onOpen,
+  onClose,
+  onToggleOrientation,
+  recent,
+  onForgetRecent,
+}: Props) {
   const [openError, setOpenError] = useState<ErrorLike | null>(null);
+  const hostId = session?.hostId ?? target?.hostId ?? null;
 
-  const open = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const value = path.trim();
-    if (!value) return;
+  /** Open a typed or completed path; returns true when a preview was opened. */
+  const openPath = async (value: string): Promise<boolean> => {
     setOpenError(null);
-    const hostId = session?.hostId ?? target?.hostId;
-    if (!hostId) return;
+    if (!hostId) return false;
     try {
       const file = value.startsWith("/") || value.startsWith("~")
         ? await api.stat(hostId, value)
@@ -39,26 +48,28 @@ export function PreviewPane({ target, session, orientation, onOpen, onClose, onT
         setOpenError({ message: `${file.name} can't be previewed.`, hint: "Preview supports PDF, PNG, JPEG and SVG." });
       } else {
         onOpen({ hostId, path: file.path, name: file.name, kind: file.preview });
-        setPath("");
+        return true;
       }
     } catch (err) {
       if (err instanceof ApiError) setOpenError(err);
     }
+    return false;
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
       <div className="flex items-center gap-1.5 border-b px-2 py-1.5">
-        <form onSubmit={open} className="flex-1">
-          <Input
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder={session ? "Open file, e.g. plots/fig3.pdf" : "Open file by absolute path"}
-            aria-label="Open file by path"
-            className="h-8"
-            spellCheck={false}
-          />
-        </form>
+        <PathInput
+          hostId={hostId}
+          sessionId={session?.sessionId ?? null}
+          recent={hostId ? recentForHost(recent, hostId) : []}
+          onSubmitPath={openPath}
+          onOpenRecent={(r) => {
+            setOpenError(null);
+            onOpen({ hostId: r.hostId, path: r.path, name: r.name, kind: r.kind });
+          }}
+          onForgetRecent={onForgetRecent}
+        />
         <Button size="icon" variant="ghost" className="size-8" onClick={onToggleOrientation}
           aria-label={orientation === "horizontal" ? "Stack preview below" : "Show preview beside"}>
           {orientation === "horizontal" ? <Rows2 className="size-4" /> : <Columns2 className="size-4" />}
