@@ -47,6 +47,7 @@ export function useWatchedFile(hostId: string, path: string) {
     error,
     reload: () => {
       setUrls({}); // fresh signed URLs (they expire after an hour)
+      setWatch(initialWatch(null)); // a manual reload adopts the newest version at once
       setTick((t) => t + 1);
     },
   };

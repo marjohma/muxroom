@@ -89,20 +89,37 @@ function PreviewBody({ target }: { target: PreviewTarget }) {
     target.hostId,
     target.path,
   );
-  const [shown, setShown] = useState<{ version: string; src: string } | null>(null);
+  const [shown, setShown] = useState<{ key: string; src: string } | null>(null);
   const [failedVersion, setFailedVersion] = useState<string | null>(null);
+  const [reloads, setReloads] = useState(0);
+  // A manual reload must re-render even when the file's version is unchanged.
+  const key = `${version}#${reloads}`;
   const pending =
-    version && previewUrl && version !== shown?.version
-      ? { version, src: withVersion(previewUrl, version) }
+    version && previewUrl && key !== shown?.key
+      ? { key, version, src: `${withVersion(previewUrl, version)}&r=${reloads}` }
       : null;
   const failed = failedVersion !== null && failedVersion === version;
+  const current =
+    version && previewUrl
+      ? { key, src: `${withVersion(previewUrl, version)}&r=${reloads}` }
+      : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 px-3 py-1.5 text-[12.5px] text-muted-foreground">
         <span className="truncate text-foreground" title={target.path}>{target.name}</span>
         <span className="flex-1" />
-        <Button size="icon" variant="ghost" className="size-7" onClick={reload} aria-label="Reload preview">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7"
+          onClick={() => {
+            reload();
+            setReloads((n) => n + 1);
+          }}
+          aria-label="Reload preview"
+          title="Reload preview"
+        >
           <RefreshCw className="size-3.5" />
         </Button>
         <Button size="icon" variant="ghost" className="size-7" asChild>
@@ -114,10 +131,16 @@ function PreviewBody({ target }: { target: PreviewTarget }) {
       {error && <ErrorNote error={error} className="mx-2 mb-2" />}
       {failed && <ErrorNote error={{ message: "The browser could not render this file." }} className="mx-2 mb-2" />}
       <div className="relative min-h-0 flex-1 overflow-hidden bg-[#0c1118]">
-        {shown && <Layer target={target} src={shown.src} visible />}
-        {pending && (
+        {target.kind === "pdf" ? (
+          // Browsers do not reliably fire `load` for PDFs in iframes, so PDFs
+          // switch directly to the newest version instead of double-buffering.
+          current && <Layer key={current.key} target={target} src={current.src} visible />
+        ) : (
+          shown && <Layer target={target} src={shown.src} visible />
+        )}
+        {target.kind !== "pdf" && pending && (
           <Layer
-            key={pending.version}
+            key={pending.key}
             target={target}
             src={pending.src}
             visible={false}
